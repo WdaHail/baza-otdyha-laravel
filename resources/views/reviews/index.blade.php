@@ -1,0 +1,6 @@
+@extends('layouts.app')
+@section('title', 'Отзывы гостей — Лесная гавань')
+@section('content')
+<section class="page-hero"><div class="container"><span class="eyebrow">Ваши впечатления</span><h1 class="page-title">Отзывы <em>гостей</em></h1><p>Истории тёплых встреч и прекрасных выходных, которыми делятся наши гости.</p></div></section>
+<section class="section-padding bg-warm"><div class="container"><div class="row g-4">@forelse($reviews as $review)<div class="col-lg-4 col-md-6"><div class="review-card h-100"><div class="stars mb-3">@for($i=0;$i<$review->rating;$i++)<i class="bi bi-star-fill"></i>@endfor</div><p>«{{ $review->body }}»</p><div class="review-author"><span class="avatar-circle">{{ mb_substr($review->user?->name ?? 'Г', 0, 1) }}</span><div><strong>{{ $review->user?->name ?? 'Гость' }}</strong><small>{{ $review->created_at->format('d.m.Y') }}</small></div></div></div></div>@empty<div class="col-12 text-center py-5">Пока нет опубликованных отзывов.</div>@endforelse</div><div class="mt-4">{{ $reviews->links('pagination::bootstrap-5') }}</div><div class="white-panel text-center mt-5"><h2 class="h4">Уже были у нас?</h2><p>Оставить отзыв можно в личном кабинете после завершения подтверждённого отдыха.</p><a class="btn btn-primary" href="{{ route('account.index') }}">В личный кабинет</a></div></div></section>
+@endsection
