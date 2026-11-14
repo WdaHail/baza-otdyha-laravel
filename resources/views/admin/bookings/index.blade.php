@@ -1,6 +1,72 @@
 @extends('layouts.admin')
 @section('admin-content')
-<div class="d-flex align-items-center justify-content-between mb-4"><h2 class="h4 mb-0">Бронирования</h2><span class="text-muted">Календарь заявок</span></div><div class="white-panel mb-4"><div class="d-flex align-items-center justify-content-between gap-2 mb-3"><h3 class="h5 mb-0">Календарь — {{ $monthStart->translatedFormat('F Y') }}</h3><div class="d-flex gap-2"><a class="btn btn-outline-primary btn-sm" href="{{ route('admin.bookings.index', ['month' => $monthStart->copy()->subMonth()->format('Y-m')]) }}" aria-label="Предыдущий месяц"><i class="bi bi-chevron-left"></i></a><a class="btn btn-outline-primary btn-sm" href="{{ route('admin.bookings.index', ['month' => $monthStart->copy()->addMonth()->format('Y-m')]) }}" aria-label="Следующий месяц"><i class="bi bi-chevron-right"></i></a></div></div><div class="calendar-grid">@foreach(['Пн','Вт','Ср','Чт','Пт','Сб','Вс'] as $day)<span class="calendar-head">{{ $day }}</span>@endforeach @for($i=1;$i<$monthStart->dayOfWeekIso;$i++)<span class="calendar-cell calendar-empty"></span>@endfor @for($day=1;$day<=$monthStart->daysInMonth;$day++)@php($current = $monthStart->copy()->day($day)->toDateString())<a class="calendar-cell {{ request('date')===$current ? 'selected' : '' }}" href="{{ route('admin.bookings.index', ['date'=>$current,'month'=>$monthStart->format('Y-m')]) }}"><span>{{ $day }}</span>@if($calendar->get($current, 0)>0)<small>{{ $calendar->get($current) }} заяв.</small>@endif</a>@endfor</div><div class="small text-muted mt-2">Нажмите на дату, чтобы просмотреть заявки за выбранный день.</div></div>
-<div class="white-panel mb-4"><form method="GET" action="{{ route('admin.bookings.index') }}" class="row g-2"><div class="col-sm-5"><label class="form-label">Дата посещения</label><input type="date" name="date" value="{{ request('date') }}" class="form-control"></div><div class="col-sm-4"><label class="form-label">Статус</label><select class="form-select" name="status"><option value="">Все</option>@foreach(['pending'=>'Ожидают','confirmed'=>'Подтверждены','cancelled'=>'Отменены'] as $key=>$label)<option value="{{ $key }}" @selected(request('status')===$key)>{{ $label }}</option>@endforeach</select></div><div class="col-sm-3 d-flex align-items-end"><button class="btn btn-primary w-100">Показать</button></div></form></div>
-@forelse($bookings as $booking)<div class="white-panel mb-3"><div class="d-flex flex-wrap justify-content-between gap-2"><div><div class="text-muted small">№{{ $booking->id }} · Создано {{ $booking->created_at->format('d.m.Y H:i') }}</div><h3 class="h5 mt-1">{{ $booking->service?->name ?? 'Услуга не найдена' }}</h3></div>@include('partials.booking-status', ['status' => $booking->status])</div><div class="row g-2 small text-muted mb-3"><div class="col-sm-6"><i class="bi bi-person me-1"></i>{{ $booking->user?->name }} ({{ $booking->user?->email }})</div><div class="col-sm-6"><i class="bi bi-calendar me-1"></i>{{ $booking->start_at->format('d.m.Y H:i') }}–{{ $booking->end_at->format('H:i') }}</div><div class="col-sm-6"><i class="bi bi-people me-1"></i>{{ $booking->guest_count }} гостей · {{ number_format($booking->total_price,0,'.',' ') }} ₽</div><div class="col-sm-6"><i class="bi bi-plus-circle me-1"></i>{{ $booking->extras->pluck('name')->join(', ') ?: 'Без доп. услуг' }}</div></div>@if($booking->comment)<p class="small bg-light rounded p-3">Комментарий: {{ $booking->comment }}</p>@endif<form class="d-flex align-items-center gap-2 flex-wrap" action="{{ route('admin.bookings.update', $booking) }}" method="POST">@csrf @method('PATCH')<label for="b{{ $booking->id }}" class="small fw-semibold">Изменить статус:</label><select id="b{{ $booking->id }}" class="form-select form-select-sm" style="width:auto" name="status" @disabled($booking->status==='cancelled')>@foreach(['pending'=>'Ожидает','confirmed'=>'Подтверждено','cancelled'=>'Отменено'] as $key=>$label)<option value="{{ $key }}" @selected($booking->status===$key)>{{ $label }}</option>@endforeach</select><button class="btn btn-primary btn-sm" @disabled($booking->status==='cancelled')>Сохранить</button></form></div>@empty<div class="white-panel text-center">Бронирований не найдено.</div>@endforelse<div class="mt-4">{{ $bookings->links('pagination::bootstrap-5') }}</div>
+<div class="d-flex align-items-center justify-content-between mb-4">
+    <h2 class="h4 mb-0">Бронирования</h2>
+    <span class="text-muted">Календарь заявок</span>
+</div>
+<div class="white-panel mb-4">
+    <div class="d-flex align-items-center justify-content-between gap-2 mb-3">
+        <h3 class="h5 mb-0">Календарь — {{ $monthStart->translatedFormat('F Y') }}</h3>
+        <div class="d-flex gap-2">
+            <a class="btn btn-outline-primary btn-sm" href="{{ route('admin.bookings.index', ['month' => $monthStart->copy()->subMonth()->format('Y-m')]) }}" aria-label="Предыдущий месяц">
+                <i class="bi bi-chevron-left"></i>
+            </a>
+            <a class="btn btn-outline-primary btn-sm" href="{{ route('admin.bookings.index', ['month' => $monthStart->copy()->addMonth()->format('Y-m')]) }}" aria-label="Следующий месяц">
+                <i class="bi bi-chevron-right"></i>
+            </a></div></div>
+    <div class="calendar-grid">@foreach(['Пн','Вт','Ср','Чт','Пт','Сб','Вс'] as $day)
+            <span class="calendar-head">{{ $day }}</span>
+        @endforeach @for($i=1;$i<$monthStart->dayOfWeekIso;$i++)
+            <span class="calendar-cell calendar-empty"></span>
+        @endfor @for($day=1;$day<=$monthStart->daysInMonth;$day++)
+            @php($current = $monthStart->copy()->day($day)->toDateString())
+            <a class="calendar-cell {{ request('date')===$current ? 'selected' : '' }}" href="{{ route('admin.bookings.index', ['date'=>$current,'month'=>$monthStart->format('Y-m')]) }}">
+                <span>{{ $day }}</span>
+                @if($calendar->get($current, 0)>0)
+                    <small>{{ $calendar->get($current) }} заяв.</small>
+                @endif</a>
+        @endfor
+    </div>
+    <div class="small text-muted mt-2">Нажмите на дату, чтобы просмотреть заявки за выбранный день.</div></div>
+<div class="white-panel mb-4">
+    <form method="GET" action="{{ route('admin.bookings.index') }}" class="row g-2">
+        <div class="col-sm-5">
+            <label class="form-label">Дата посещения</label>
+            <input type="date" name="date" value="{{ request('date') }}" class="form-control"></div>
+        <div class="col-sm-4">
+            <label class="form-label">Статус</label>
+            <select class="form-select" name="status">
+                <option value="">Все</option>
+                @foreach(['pending'=>'Ожидают','confirmed'=>'Подтверждены','cancelled'=>'Отменены'] as $key=>$label)
+                    <option value="{{ $key }}" @selected(request('status')===$key)>{{ $label }}</option>
+                @endforeach</select></div>
+        <div class="col-sm-3 d-flex align-items-end">
+            <button class="btn btn-primary w-100">Показать</button></div></form></div>
+@forelse($bookings as $booking)
+    <div class="white-panel mb-3">
+        <div class="d-flex flex-wrap justify-content-between gap-2">
+            <div><div class="text-muted small">№{{ $booking->id }} · Создано {{ $booking->created_at->format('d.m.Y H:i') }}</div>
+                <h3 class="h5 mt-1">{{ $booking->service?->name ?? 'Услуга не найдена' }}</h3></div>
+            @include('partials.booking-status', ['status' => $booking->status])</div>
+        <div class="row g-2 small text-muted mb-3">
+            <div class="col-sm-6">
+                <i class="bi bi-person me-1"></i>{{ $booking->user?->name }} ({{ $booking->user?->email }})</div>
+            <div class="col-sm-6">
+                <i class="bi bi-calendar me-1"></i>{{ $booking->start_at->format('d.m.Y H:i') }}–{{ $booking->end_at->format('H:i') }}</div>
+            <div class="col-sm-6">
+                <i class="bi bi-people me-1"></i>{{ $booking->guest_count }} гостей · {{ number_format($booking->total_price,0,'.',' ') }} ₽</div>
+            <div class="col-sm-6">
+                <i class="bi bi-plus-circle me-1"></i>{{ $booking->extras->pluck('name')->join(', ') ?: 'Без доп. услуг' }}</div></div>
+        @if($booking->comment)
+            <p class="small bg-light rounded p-3">Комментарий: {{ $booking->comment }}</p>
+        @endif
+        <form class="d-flex align-items-center gap-2 flex-wrap" action="{{ route('admin.bookings.update', $booking) }}" method="POST">@csrf @method('PATCH')
+            <label for="b{{ $booking->id }}" class="small fw-semibold">Изменить статус:</label>
+            <select id="b{{ $booking->id }}" class="form-select form-select-sm" style="width:auto" name="status" @disabled($booking->status==='cancelled')>
+                @foreach(['pending'=>'Ожидает','confirmed'=>'Подтверждено','cancelled'=>'Отменено'] as $key=>$label)
+                    <option value="{{ $key }}" @selected($booking->status===$key)>{{ $label }}</option>
+                @endforeach</select>
+            <button class="btn btn-primary btn-sm" @disabled($booking->status==='cancelled')>Сохранить</button>
+        </form></div>@empty<div class="white-panel text-center">Бронирований не найдено.</div>
+@endforelse<div class="mt-4">{{ $bookings->links('pagination::bootstrap-5') }}</div>
 @endsection
